@@ -8,7 +8,23 @@
   uint16_t usTemp[1][BUFFER_SIZE];    // Global to support DMA use
 #endif
 bool     dmaBuf = 0;
-  
+
+// Function to increase brightness of a color
+uint16_t increaseBrightness(uint16_t color) {
+  // Extract RGB components
+  uint16_t red = (color & 0xF800) >> 11;
+  uint16_t green = (color & 0x07E0) >> 5;
+  uint16_t blue = color & 0x001F;
+
+  // Increase brightness
+  red = min(red + (31 - red) / 2, 31);
+  green = min(green + (63 - green) / 2, 63);
+  blue = min(blue + (31 - blue) / 2, 31);
+
+  // Combine back to RGB565
+  return (red << 11) | (green << 5) | blue;
+}
+
 // Draw a line of image directly on the LCD
 void GIFDraw(GIFDRAW *pDraw)
 {
@@ -62,8 +78,7 @@ void GIFDraw(GIFDRAW *pDraw)
           if (color == 0xFFFF) { // Pixel is white
             *d++ = color;
           } else {
-            uint16_t greenOnly = color & 0x07E0; // Keep only the green component
-            *d++ = greenOnly;
+            *d++ = increaseBrightness(color);
           }
           iCount++;
         }
@@ -101,7 +116,7 @@ void GIFDraw(GIFDRAW *pDraw)
         if (color == 0xFFFF) { // Pixel is white
           usTemp[dmaBuf][iCount] = color;
         } else {
-          usTemp[dmaBuf][iCount] = color & 0x07E0; // Keep only the green component
+          usTemp[dmaBuf][iCount] = increaseBrightness(color);
         }
       }
     else
@@ -110,7 +125,7 @@ void GIFDraw(GIFDRAW *pDraw)
         if (color == 0xFFFF) { // Pixel is white
           usTemp[dmaBuf][iCount] = color;
         } else {
-          usTemp[dmaBuf][iCount] = color & 0x07E0; // Keep only the green component
+          usTemp[dmaBuf][iCount] = increaseBrightness(color);
         }
       }
 
@@ -137,7 +152,7 @@ void GIFDraw(GIFDRAW *pDraw)
           if (color == 0xFFFF) { // Pixel is white
             usTemp[dmaBuf][iCount] = color;
           } else {
-            usTemp[dmaBuf][iCount] = color & 0x07E0; // Keep only the green component
+            usTemp[dmaBuf][iCount] = increaseBrightness(color);
           }
         }
       else
@@ -146,7 +161,7 @@ void GIFDraw(GIFDRAW *pDraw)
           if (color == 0xFFFF) { // Pixel is white
             usTemp[dmaBuf][iCount] = color;
           } else {
-            usTemp[dmaBuf][iCount] = color & 0x07E0; // Keep only the green component
+            usTemp[dmaBuf][iCount] = increaseBrightness(color);
           }
         }
 
