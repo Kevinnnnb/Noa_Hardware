@@ -59,8 +59,12 @@ void GIFDraw(GIFDRAW *pDraw)
         else // opaque
         {
           uint16_t color = usPalette[c];
-          uint16_t redOnly = color & 0xF800; // Keep only the red component
-          *d++ = redOnly;
+          if (color == 0xFFFF) { // Pixel is white
+            *d++ = color;
+          } else {
+            uint16_t blueOnly = color & 0x001F; // Keep only the blue component
+            *d++ = blueOnly;
+          }
           iCount++;
         }
       } // while looking for opaque pixels
@@ -94,12 +98,20 @@ void GIFDraw(GIFDRAW *pDraw)
     if (iWidth <= BUFFER_SIZE)
       for (iCount = 0; iCount < iWidth; iCount++) {
         uint16_t color = usPalette[*s++];
-        usTemp[dmaBuf][iCount] = color & 0xF800; // Keep only the red component
+        if (color == 0xFFFF) { // Pixel is white
+          usTemp[dmaBuf][iCount] = color;
+        } else {
+          usTemp[dmaBuf][iCount] = color & 0x001F; // Keep only the blue component
+        }
       }
     else
       for (iCount = 0; iCount < BUFFER_SIZE; iCount++) {
         uint16_t color = usPalette[*s++];
-        usTemp[dmaBuf][iCount] = color & 0xF800; // Keep only the red component
+        if (color == 0xFFFF) { // Pixel is white
+          usTemp[dmaBuf][iCount] = color;
+        } else {
+          usTemp[dmaBuf][iCount] = color & 0x001F; // Keep only the blue component
+        }
       }
 
 #ifdef USE_DMA // 71.6 fps (ST7796 84.5 fps)
@@ -122,12 +134,20 @@ void GIFDraw(GIFDRAW *pDraw)
       if (iWidth <= BUFFER_SIZE)
         for (iCount = 0; iCount < iWidth; iCount++) {
           uint16_t color = usPalette[*s++];
-          usTemp[dmaBuf][iCount] = color & 0xF800; // Keep only the red component
+          if (color == 0xFFFF) { // Pixel is white
+            usTemp[dmaBuf][iCount] = color;
+          } else {
+            usTemp[dmaBuf][iCount] = color & 0x001F; // Keep only the blue component
+          }
         }
       else
         for (iCount = 0; iCount < BUFFER_SIZE; iCount++) {
           uint16_t color = usPalette[*s++];
-          usTemp[dmaBuf][iCount] = color & 0xF800; // Keep only the red component
+          if (color == 0xFFFF) { // Pixel is white
+            usTemp[dmaBuf][iCount] = color;
+          } else {
+            usTemp[dmaBuf][iCount] = color & 0x001F; // Keep only the blue component
+          }
         }
 
 #ifdef USE_DMA
