@@ -62,8 +62,8 @@ void GIFDraw(GIFDRAW *pDraw)
           if (color == 0xFFFF) { // Pixel is white
             *d++ = color;
           } else {
-            uint16_t blueOnly = color & 0x001F; // Keep only the blue component
-            *d++ = blueOnly;
+            uint16_t greenOnly = color & 0x07E0; // Keep only the green component
+            *d++ = greenOnly;
           }
           iCount++;
         }
@@ -101,7 +101,7 @@ void GIFDraw(GIFDRAW *pDraw)
         if (color == 0xFFFF) { // Pixel is white
           usTemp[dmaBuf][iCount] = color;
         } else {
-          usTemp[dmaBuf][iCount] = color & 0x001F; // Keep only the blue component
+          usTemp[dmaBuf][iCount] = color & 0x07E0; // Keep only the green component
         }
       }
     else
@@ -110,7 +110,7 @@ void GIFDraw(GIFDRAW *pDraw)
         if (color == 0xFFFF) { // Pixel is white
           usTemp[dmaBuf][iCount] = color;
         } else {
-          usTemp[dmaBuf][iCount] = color & 0x001F; // Keep only the blue component
+          usTemp[dmaBuf][iCount] = color & 0x07E0; // Keep only the green component
         }
       }
 
@@ -137,7 +137,7 @@ void GIFDraw(GIFDRAW *pDraw)
           if (color == 0xFFFF) { // Pixel is white
             usTemp[dmaBuf][iCount] = color;
           } else {
-            usTemp[dmaBuf][iCount] = color & 0x001F; // Keep only the blue component
+            usTemp[dmaBuf][iCount] = color & 0x07E0; // Keep only the green component
           }
         }
       else
@@ -146,7 +146,7 @@ void GIFDraw(GIFDRAW *pDraw)
           if (color == 0xFFFF) { // Pixel is white
             usTemp[dmaBuf][iCount] = color;
           } else {
-            usTemp[dmaBuf][iCount] = color & 0x001F; // Keep only the blue component
+            usTemp[dmaBuf][iCount] = color & 0x07E0; // Keep only the green component
           }
         }
 
