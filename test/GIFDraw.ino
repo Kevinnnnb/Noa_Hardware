@@ -9,7 +9,7 @@
 #endif
 bool     dmaBuf = 0;
 
-// Function to adjust brightness, reduce red and add green to a color
+// Function to adjust brightness, reduce red and significantly add green to a color
 uint16_t adjustColor(uint16_t color) {
   // Extract RGB components
   uint16_t red = (color & 0xF800) >> 11;
@@ -23,7 +23,7 @@ uint16_t adjustColor(uint16_t color) {
 
   // Adjust colors
   red = max(red - 5, 0); // Reduce red component
-  green = min(green + 20, 63); // Increase green component
+  green = min(green + 30, 63); // Significantly increase green component
   blue = min(blue + (31 - blue) / 2, 31);
 
   // Combine back to RGB565
@@ -127,7 +127,7 @@ void GIFDraw(GIFDRAW *pDraw)
     else
       for (iCount = 0; iCount < BUFFER_SIZE; iCount++) {
         uint16_t color = usPalette[*s++];
-        if (color == 0xFFFF || color == 0x0000) { // Pixel is white or black
+        if (color == 0xFFFF || color == 0x0000) { // Pixel est blanc ou noir
           usTemp[dmaBuf][iCount] = color;
         } else {
           usTemp[dmaBuf][iCount] = adjustColor(color);
@@ -154,7 +154,7 @@ void GIFDraw(GIFDRAW *pDraw)
       if (iWidth <= BUFFER_SIZE)
         for (iCount = 0; iCount < iWidth; iCount++) {
           uint16_t color = usPalette[*s++];
-          if (color == 0xFFFF || color == 0x0000) { // Pixel is white or black
+          if (color == 0xFFFF || color == 0x0000) { // Pixel est blanc ou noir
             usTemp[dmaBuf][iCount] = color;
           } else {
             usTemp[dmaBuf][iCount] = adjustColor(color);
@@ -163,7 +163,7 @@ void GIFDraw(GIFDRAW *pDraw)
       else
         for (iCount = 0; iCount < BUFFER_SIZE; iCount++) {
           uint16_t color = usPalette[*s++];
-          if (color == 0xFFFF || color == 0x0000) { // Pixel is white or black
+          if (color == 0xFFFF || color == 0x0000) { // Pixel est blanc ou noir
             usTemp[dmaBuf][iCount] = color;
           } else {
             usTemp[dmaBuf][iCount] = adjustColor(color);
