@@ -9,7 +9,7 @@
 #endif
 bool     dmaBuf = 0;
 
-// Function to reduce red and increase green in a color
+// Function to adjust colors: reduce red, increase green, and keep blue unchanged
 uint16_t adjustColor(uint16_t color) {
   // Extract RGB components
   uint16_t red = (color & 0xF800) >> 11;
@@ -23,7 +23,7 @@ uint16_t adjustColor(uint16_t color) {
 
   // Adjust colors
   red = max(red - 10, 0); // Reduce red component
-  green = min(green + 20, 63); // Increase green component significantly
+  green = min(green + 30, 63); // Increase green component more
   blue = min(blue, 31); // Keep blue component unchanged
 
   // Combine back to RGB565
