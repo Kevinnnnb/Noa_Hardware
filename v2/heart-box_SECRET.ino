@@ -40,7 +40,7 @@ int16_t ypos = 0;
 #include <AsyncTCP.h>
 #include "ESPAsyncWebServer.h"
 #include <UniversalTelegramBot.h>
-#define BOTtoken "6898173842:AAHH9U6j6sppDBDy0nxYJl84qyzgZMehO64"  // your Bot Token (Get from Botfather)
+#define BOTtoken "your bot token"  // your Bot Token (Get from Botfather)
 
 WiFiClientSecure client;
 UniversalTelegramBot bot(BOTtoken, client);
@@ -400,14 +400,7 @@ void displayInitialMessage() {
   tft.setTextColor(TFT_BLACK);
   tft.setTextSize(2); // Taille de police 2
 
-  tft.println(" "); // Message à afficher
-  tft.print(" Coucou ma petite Noa !");
-  tft.print("             ");
-  tft.print("\n\n Joyeux anniversaire");
-  tft.print("\n\n Tu es enfin devenue une grande marmotte ");
-  tft.println("\n\n Ca fait 2 ans que je te connais et tu   es la fille la plus incroyable que j'ai\n jamais vue.         \n\n Tu es extraordinaire et j'ai vraiment   de la chance de t'avoir et d'etre  amis avec toi :)");
-  tft.print("\n Tu es parfaite ne change rien !");
-  tft.print("\n\n T'es une fille super");
+  tft.println(" Hello world !"); // Message à afficher
 }
 
 void effacerTexte() {
