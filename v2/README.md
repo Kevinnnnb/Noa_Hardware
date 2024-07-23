@@ -1,3 +1,5 @@
 The files "GIFDraw.ino" and "PNG_FS_Support.ino" are the same as in the v1 version of the projet so please download it there
 
 Also please notice that this version og the code is running a script on the sever that download a specific gif file from the server to display it when you got a new message. So Please be sure that you won't use a servo motor in it cause it won't work. If you want to do a love Box with an heart that Wiggle with a Servo please use the V1 script. (Also take note that the web site is not the same (smt change beetwen this version and the v1 but it's not something dramatic bc ther's just one "route" that change to upload wich gif the user want to display to notify her that she got a new message so you don't have to change the code that is running on the backend ( the Server ). 
+
+PS : Please take note that the file "GIFDraw.ino" is not the original one and that it's possible that the colour are a bit weird ... you can try to modify the value in the adjustcolor function ... Or you can directly use the file that is provieded in the github page of the librairie 
