@@ -10,6 +10,8 @@
 #include <ArduinoJson.h>  // Bibliothèque pour traiter les données JSON
 #include <HTTPClient.h>
 #include <Arduino.h>
+#include <qrcode.h>  // Assurez-vous d'inclure une bibliothèque QR Code
+#include <pngle.h>
 
 unsigned long startTime = 0;
 bool isTiming = false;
@@ -40,7 +42,8 @@ int16_t ypos = 0;
 #include <AsyncTCP.h>
 #include "ESPAsyncWebServer.h"
 #include <UniversalTelegramBot.h>
-#define BOTtoken "your bot token"  // your Bot Token (Get from Botfather)
+#define BOTtoken "6898173842:AAHH9U6j6sppDBDy0nxYJl84qyzgZMehO64"  // your Bot Token (Get from Botfather)
+const char* serverName = "https://arcabox.onrender.com/api/show_image_status";
 
 WiFiClientSecure client;
 UniversalTelegramBot bot(BOTtoken, client);
@@ -249,7 +252,7 @@ void setupServer() {
 <body>
   <div class="container">
     <h2>C'est tout bon !</h2>
-    <h3>Tu peux te reconnecter à ton Wi-Fi et suivre les instructions de la boite</h3>
+    <h3>Tu peux te reconnecter à ton Wi-Fi et suivre les instructions sur l'écran</h3>
   </div>
 </body>
 </html>
@@ -264,7 +267,7 @@ void setupServer() {
 
 
 
-const char *render_site = "https://love-box-noa.onrender.com//longPoll";
+const char *render_site = "https://arcabox.onrender.com///longPoll";
 
 enum displayState {
   WAITING_FOR_IMAGE,
@@ -309,6 +312,7 @@ void setup() {
   Serial.println();
   myServo.attach(SERVO_PIN); // Attachez le servo au pin défini
   ledcWrite(0, pulseWidth(MID_POS));
+  clearWiFiCredentials();
 
   // Initialize NVS
   preferences.begin("wifi-creds", false);
@@ -334,9 +338,14 @@ void setup() {
     WiFi.softAP("Projet Marmotte");
     Serial.print("AP IP address: ");
     Serial.println(WiFi.softAPIP());
+    tft.init();
     
     // Affichage des instructions avec les cœurs rouges
-    tft.fillScreen(TFT_BLACK);
+
+    tft.setRotation(3);
+    tft.fillScreen(TFT_WHITE);
+    tft.setTextColor(TFT_BLACK);
+    tft.setTextSize(2);
     tft.setCursor(0, 0);
     tft.println("");
     tft.println("  Connecte toi au wifi Projet Marmotte");
@@ -386,11 +395,86 @@ void setup() {
   tft.print("  Tout est pret a etre utilise :)");
   delay(5000);
   tft.fillScreen(TFT_WHITE);
-  tft.setRotation(2); // Change orientation to horizontal
-  bot.sendMessage(chat_id, "Hello !");
-  bot.sendMessage(chat_id, "Je t'enverrai les images et les messages que tu as reçus si tu ne les as pas vus après un certain temps.");
-  bot.sendMessage(chat_id, "A+");
+  tft.setRotation(2); // Change orientation to horizontaldownloadImage
+  bot.sendMessage(chat_id, "Hello !\n\nJoyeux anniversaire !\n\nJe vais utiliser ce Bot pour t'envoyer une notif quand tu as reçu un message mais que tu ne l'as pas regardé apres une heure.\n\nA+ 😘");
+  downloadImage("https://arcabox.onrender.com/coeur");
 }
+
+void downloadImage(const char* url) {
+    HTTPClient http;
+    http.begin(url);
+    int httpCode = http.GET();
+
+    if (httpCode == HTTP_CODE_OK) {
+        WiFiClient* stream = http.getStreamPtr();
+        File file = SPIFFS.open("/coeur.png", FILE_WRITE);
+
+        if (!file) {
+            Serial.println("Failed to open file for writing");
+            return;
+        }
+
+        uint8_t buffer[512];
+        int len;
+
+        while ((len = stream->read(buffer, sizeof(buffer))) > 0) {
+            file.write(buffer, len);
+        }
+
+        file.close();
+        Serial.println("Image downloaded successfully");
+    } else {
+        Serial.printf("Failed to download image, HTTP code: %d\n", httpCode);
+    }
+
+    http.end();
+}
+
+
+void showImageFromInternet(){
+  // Scan LittleFS and load any *.png files¨
+  tft.begin();
+    tft.fillScreen(TFT_WHITE);
+    tft.setRotation(3);
+    tft.setCursor(0,0);
+    tft.print("\n\n Tu as recu un message\n\n Scan le QRcode ou rends toi ici :\n\n https://arcabox.onrender.com/noa");
+    tft.setRotation(2);
+    tft.setCursor(0,240);
+  Serial.println("Loading image");
+  File file = SPIFFS.open("/coeur.png", "r");
+  String strname = file.name();
+  strname = "/" + strname;
+  Serial.println(file.name());
+  // If it is not a directory and filename ends in .png then load it
+  if (!file.isDirectory() && strname.endsWith(".png")) {
+    
+    // Pass support callback function names to library
+    int16_t rc = png.open(strname.c_str(), pngOpen, pngClose, pngRead, pngSeek, pngDraw);
+    if (rc == PNG_SUCCESS) {
+      tft.startWrite();
+      Serial.printf("image specs: (%d x %d), %d bpp, pixel type: %d\n", png.getWidth(), png.getHeight(), png.getBpp(), png.getPixelType());
+      //480 x 320
+      xpos = (320/2 - png.getWidth()/2) - 50;
+      ypos = (480/2 - png.getHeight()/2);
+      uint32_t dt = millis();
+      if (png.getWidth() > MAX_IMAGE_WIDTH) {
+        Serial.println("Image too wide for allocated line buffer size!");
+      }
+      else {
+        rc = png.decode(NULL, 0);
+        png.close();
+        delay(5000);
+      }
+      tft.endWrite();
+      // How long did rendering take...
+      Serial.print(millis()-dt); Serial.println("ms");
+    }else{
+      Serial.println(rc);
+      Serial.println("Failed to load image");
+    }
+  }
+}
+
 
 
 
@@ -400,7 +484,14 @@ void displayInitialMessage() {
   tft.setTextColor(TFT_BLACK);
   tft.setTextSize(2); // Taille de police 2
 
-  tft.println(" Hello world !"); // Message à afficher
+  tft.println(" "); // Message à afficher
+  tft.print(" Coucou ma petite Noa !");
+  tft.print("             ");
+  tft.print("\n\n Joyeux anniversaire");
+  tft.print("\n\n Tu es enfin devenue une grande marmotte ");
+  tft.println("\n\n Ca fait 2 ans que je te connais et tu   es la fille la plus incroyable que \n j'ai jamais vue.         \n\n Tu es extraordinaire et j'ai vraiment   de la chance de t'avoir et d'etre  amis avec toi :)"); 
+  tft.print("\n\n T'es une fille super !");
+  tft.print("\n\n Ne change rien :)");
 }
 
 void effacerTexte() {
@@ -412,7 +503,7 @@ void effacerTexte() {
 void getUserInputFromServer() {
   old_user_input = user_input;
   HTTPClient http;
-  String serverAddress = "https://love-box-noa.onrender.com/poll";  // Adresse de mon serveur Flask
+  String serverAddress = "https://arcabox.onrender.com/poll";  // Adresse de mon serveur Flask
 
   if (http.begin(serverAddress)) {  // Démarre la connexion HTTP
     int httpCode = http.GET();     // Envoie la requête GET
@@ -424,27 +515,25 @@ void getUserInputFromServer() {
         StaticJsonDocument<200> doc;
         DeserializationError error = deserializeJson(doc, payload);
         if (!error) {
-          const char* user_input = doc["user_input"];
+          const char* new_user_input = doc["user_input"];
           http.end();
           
-
-          if (String(user_input) != "") {
-            Serial.print("Got message : "); Serial.print(user_input); Serial.print("\n");
-            if (analogRead(LIGHT_SENSE_PIN) < 5) {
+          if (String(new_user_input) != "") {
+            Serial.print("Got message : "); Serial.print(new_user_input); Serial.print("\n");
+            if (check()) {
               Serial.print("L'user input est : ");
- Serial.print(user_input);
+              Serial.print(new_user_input);
  
-  // Effacer l'écran TFT et affiche le message
-
-  tft.init();
-  tft.setRotation(3);
-  tft.fillScreen(TFT_WHITE);
-  tft.setTextColor(TFT_BLACK);
-  tft.setTextSize(2);
-  tft.setCursor(10, 10);
-  tft.println("  ");
-  tft.print(user_input);
-  tft.setRotation(2); // Réinitialiser la rotation à la valeur par défaut
+              // Effacer l'écran TFT et afficher le message
+              tft.init();
+              tft.setRotation(3);
+              tft.fillScreen(TFT_WHITE);
+              tft.setTextColor(TFT_BLACK);
+              tft.setTextSize(2);
+              tft.setCursor(10, 10);
+              tft.println("  ");
+              tft.print(new_user_input);
+              tft.setRotation(2); // Réinitialiser la rotation à la valeur par défaut
               isTiming = false;  // Réinitialise le chronométrage
             } else {
               if (!isTiming) {
@@ -452,36 +541,15 @@ void getUserInputFromServer() {
                 isTiming = true;
               }
 
-              while (true) {
-                int lightLevel = analogRead(LIGHT_SENSE_PIN);
-                if (lightLevel < 5) {
-                  Serial.print("L'user input est : ");
- Serial.print(user_input);
- 
-  // Effacer l'écran TFT et afficher le nouveau message
-
-  tft.init();
-  tft.setRotation(3);
-  tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(TFT_WHITE);
-  tft.setTextSize(2);
-  tft.setCursor(160, 105);
-  tft.println("  ");
-  tft.print(user_input);
-  tft.setRotation(2); // Réinitialiser la rotation à la valeur par défaut
-                  isTiming = false;
-                  break;
-                }
-
-                if (millis() - startTime > 60000) {  // Vérifie si 60 secondes se sont écoulées
-                  afficher_message = true;
-                  isTiming = false;  // Réinitialise le chronométrage
-                  currState = WAITING_FOR_IMAGE;
-                  ledcWrite(0, pulseWidth(MID_POS));
-                  break;
-                } else {
-                  servoWiggle(); 
-                }
+              if (millis() - startTime > 60 * 1000) {  // Vérifie si 1 minute s'est écoulée
+                bot.sendMessage(chat_id, "Tu as reçu un message, tu peux la voir ici : https://arcabox.onrender.com/messages");
+                isTiming = false;  // Réinitialise le chronométrage
+                showImage();
+                currState = WAITING_FOR_IMAGE;
+                ledcWrite(0, pulseWidth(MID_POS));
+              } else {
+    showImageFromInternet();
+    tft.setRotation(3);
               }
             }
           }
@@ -503,6 +571,8 @@ void getUserInputFromServer() {
   }
 }
 
+
+
 void new_string() {
 
   // Vérifier la connexion Wi-Fi
@@ -510,7 +580,7 @@ void new_string() {
     HTTPClient http;
     
     // Spécifier l'URL
-    http.begin("https://love-box-noa.onrender.com/delete_user_input");
+    http.begin("https://arcabox.onrender.com//delete_user_input");
     
     // Effectuer la requête GET
     int httpResponseCode = http.GET();
@@ -536,10 +606,48 @@ void new_string() {
   delay(10000);
 }
 
+bool check() {
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+    http.begin(serverName);
+    int httpResponseCode = http.GET();
+    
+    if (httpResponseCode > 0) {
+      String payload = http.getString();
+      Serial.println(payload);
 
+      // Parse JSON
+      StaticJsonDocument<200> doc;
+      DeserializationError error = deserializeJson(doc, payload);
+      
+      if (!error) {
+        bool show_image = doc["show_image"];
+        Serial.print("show_image: ");
+        Serial.println(show_image);
+        
+        // Retourne le booléen correspondant à show_image
+        return show_image;
+      } else {
+        Serial.print("Erreur de parsing JSON: ");
+        Serial.println(error.c_str());
+      }
+    } else {
+      Serial.print("Erreur lors de la requête HTTP: ");
+      Serial.println(httpResponseCode);
+    }
+
+    http.end();
+  } else {
+    Serial.println("WiFi non connecté");
+  }
+
+  delay(10000); // Attendre 10 secondes avant de faire une nouvelle requête
+  return false; // Retourne false par défaut en cas d'erreur
+}
 
 void loop() {
   dnsServer.processNextRequest();
+  Serial.print("Test pour voir si le QRcde est affiché sur l'écran");
 
   HTTPClient http;
 
@@ -549,7 +657,7 @@ void loop() {
     Serial.print("L'user input a envoyé sur telegram est : ");
     Serial.print(user_input);
     Serial.print("\n");
-    bot.sendMessage(chat_id, "Tu as reçu un message, tu peux le voir ici : https://love-box-noa.onrender.com/messages");
+    bot.sendMessage(chat_id, "Tu as reçu un message, tu peux le voir ici : https://arcabox.onrender.com//messages");
     new_string(); 
     user_input = "";
     afficher_message=false; ; 
@@ -558,7 +666,9 @@ void loop() {
       new_string();
       user_input = "";}
 
+    
 
+    // Afficher l'image téléchargée
 
   if (Serial.available() > 0) {
         // Lire la commande entrée par l'utilisateur
@@ -597,25 +707,31 @@ void loop() {
 
 
 case WAITING_TO_DISPLAY_PNG:
-  if (analogRead(LIGHT_SENSE_PIN) < 5) {
+  if (check()) {
     digitalWrite(BACKLIGHT_PIN, HIGH);
     showImage();
+    delay(60000);
+    tft.fillScreen(TFT_BLACK);
+    // Éteindre l'écran
+     digitalWrite(BACKLIGHT_PIN, LOW);  // Couper l'alimentation de l'écran
     currState = DISPLAYING_PNG;
     isTiming = false;  // Réinitialise le chronométrage
+    break;
   } else {
     if (!isTiming) {
       startTime = millis();  // Commence le chronométrage
       isTiming = true;
     }
     
-    if (millis() - startTime > 60000) {  // Vérifie si 30 secondes se sont écoulées
-      bot.sendMessage(chat_id, "Tu as reçu une image, tu peux la voir ici : https://love-box-noa.onrender.com/image");
+    if (millis() - startTime > 60*60*1000) {  // Vérifie si 30 secondes se sont écoulées
+      bot.sendMessage(chat_id, "Tu as reçu une image, tu peux la voir ici : https://arcabox.onrender.com//image");
       isTiming = false;  // Réinitialise le chronométrage
       showImage();
       currState = WAITING_FOR_IMAGE;
       ledcWrite(0, pulseWidth(MID_POS));
     } else {
-      servoWiggle(); 
+    showImageFromInternet();
+    tft.setRotation(3);
     }
   }
   break;
@@ -728,39 +844,59 @@ void showGif(bool clearScreen) {
   }
 }
 
-void showImage() {
-  tft.fillScreen(TFT_BLACK);
+void showImage(){
+  // Scan LittleFS and load any *.png files
+    tft.fillScreen(TFT_WHITE);
+    tft.setRotation(2);
   Serial.println("Loading image");
   File file = SPIFFS.open("/image.png", "r");
   String strname = file.name();
   strname = "/" + strname;
   Serial.println(file.name());
-
+  // If it is not a directory and filename ends in .png then load it
   if (!file.isDirectory() && strname.endsWith(".png")) {
+    
+    // Pass support callback function names to library
     int16_t rc = png.open(strname.c_str(), pngOpen, pngClose, pngRead, pngSeek, pngDraw);
     if (rc == PNG_SUCCESS) {
       tft.startWrite();
       Serial.printf("image specs: (%d x %d), %d bpp, pixel type: %d\n", png.getWidth(), png.getHeight(), png.getBpp(), png.getPixelType());
-
-      imageWidth = png.getWidth();
-      imageHeight = png.getHeight();
-
+      //480 x 320
+      xpos = 320/2 - png.getWidth()/2;
+      ypos = 480/2 - png.getHeight()/2;
       uint32_t dt = millis();
-      if (imageWidth > MAX_IMAGE_WIDTH) {
+      if (png.getWidth() > MAX_IMAGE_WIDTH) {
         Serial.println("Image too wide for allocated line buffer size!");
-      } else {
-        rc = png.decode(image, 0); // Décode l'image dans la variable globale
+      }
+      else {
+        rc = png.decode(NULL, 0);
         png.close();
       }
       tft.endWrite();
-      Serial.print(millis() - dt);
-      Serial.println("ms");
-    } else {
+      // How long did rendering take...
+      Serial.print(millis()-dt); Serial.println("ms");
+    }else{
       Serial.println(rc);
       Serial.println("Failed to load image");
     }
   }
 }
+
+
+#include <qrcode.h>  // Make sure this is included at the top
+
+void displayQR() {
+  tft.init();
+  tft.setRotation(3);
+  tft.fillScreen(TFT_WHITE);
+  tft.setTextColor(TFT_BLACK);
+  tft.setTextSize(2);
+    tft.print("Bonjour Xena\n\nJ'aime tes gros sboobs");
+    delay(30000);
+}
+
+
+
 
 void clearWiFiCredentials() {
   preferences.clear();
@@ -784,7 +920,7 @@ void handleSerialInput() {
 }
 
 void servoWiggle() {
- Serial.print("Wesh faut bosser maintenant");
+ Serial.print("Wesh faut bosser maintenant \n");
 }
 
 int pulseWidth(int angle) {
