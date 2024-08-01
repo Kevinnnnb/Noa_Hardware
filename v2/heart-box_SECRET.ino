@@ -269,15 +269,16 @@ void setupServer() {
 
 const char *render_site = "https://arcabox.onrender.com///longPoll";
 
-enum displayState {
+enum State {
   WAITING_FOR_IMAGE,
   WAITING_TO_DISPLAY_GIF,
   WAITING_TO_DISPLAY_PNG,
   DISPLAYING_GIF,
-  DISPLAYING_PNG
+  DISPLAYING_PNG,
+  GET_USER_INPUT  // Nouvel état pour obtenir l'entrée utilisateur
 };
 
-displayState currState = WAITING_FOR_IMAGE;
+State currState = WAITING_FOR_IMAGE;
 
 // holds the current upload
 File fsUploadFile;
@@ -311,7 +312,6 @@ void setup() {
   Serial.begin(115200);
   Serial.println();
   myServo.attach(SERVO_PIN); // Attachez le servo au pin défini
-  ledcWrite(0, pulseWidth(MID_POS));
   clearWiFiCredentials();
 
   // Initialize NVS
@@ -500,7 +500,7 @@ void effacerTexte() {
 }
 
 
-void getUserInputFromServer() {
+void ShowText() {
   old_user_input = user_input;
   HTTPClient http;
   String serverAddress = "https://arcabox.onrender.com/poll";  // Adresse de mon serveur Flask
@@ -536,27 +536,12 @@ void getUserInputFromServer() {
               tft.setRotation(2); // Réinitialiser la rotation à la valeur par défaut
               isTiming = false;  // Réinitialise le chronométrage
             } else {
-              if (!isTiming) {
-                startTime = millis();  // Commence le chronométrage
-                isTiming = true;
-              }
-
-              if (millis() - startTime > 60 * 1000) {  // Vérifie si 1 minute s'est écoulée
-                bot.sendMessage(chat_id, "Tu as reçu un message, tu peux la voir ici : https://arcabox.onrender.com/messages");
-                isTiming = false;  // Réinitialise le chronométrage
-                showImage();
-                currState = WAITING_FOR_IMAGE;
-                ledcWrite(0, pulseWidth(MID_POS));
-              } else {
-    showImageFromInternet();
-    tft.setRotation(3);
               }
             }
-          }
+          
 
           // Réinitialiser new_message_available après avoir traité le nouveau message
           new_message_available = false;
-          http.end();
         } else {
           Serial.print("deserializeJson() failed: ");
           Serial.println(error.c_str());
@@ -569,6 +554,7 @@ void getUserInputFromServer() {
   } else {
     Serial.printf("[HTTP] Unable to connect\n");
   }
+  currState = WAITING_FOR_IMAGE;  // Changer l'état après le traitement
 }
 
 
@@ -647,96 +633,89 @@ bool check() {
 
 void loop() {
   dnsServer.processNextRequest();
-  Serial.print("Test pour voir si le QRcde est affiché sur l'écran");
 
   HTTPClient http;
 
   handleSerialInput(); 
-  getUserInputFromServer(); 
+
   if(afficher_message) {
     Serial.print("L'user input a envoyé sur telegram est : ");
     Serial.print(user_input);
     Serial.print("\n");
-    bot.sendMessage(chat_id, "Tu as reçu un message, tu peux le voir ici : https://arcabox.onrender.com//messages");
+    bot.sendMessage(chat_id, "Tu as reçu un message, tu peux le voir ici : https://arcabox.onrender.com/messages");
     new_string(); 
     user_input = "";
-    afficher_message=false; ; 
-    }
-    if(String(user_input != "")){ 
-      new_string();
-      user_input = "";}
+    afficher_message = false; 
+  }
 
-    
-
-    // Afficher l'image téléchargée
+  if(String(user_input) != ""){ 
+    new_string();
+    user_input = "";
+  }
 
   if (Serial.available() > 0) {
-        // Lire la commande entrée par l'utilisateur
-        String command = Serial.readStringUntil('\n');
-        command.trim(); // Supprimer les espaces inutiles autour de la commande
+    // Lire la commande entrée par l'utilisateur
+    String command = Serial.readStringUntil('\n');
+    command.trim(); // Supprimer les espaces inutiles autour de la commande
 
-        // Vérifier si la commande est "reset firstboot"
-        if (command.equalsIgnoreCase("reset firstboot")) {
-            // Réinitialiser l'état firstboot à true (mettre votre logique ici)
-            firstBoot = true; // Suppose que firstboot est une variable globale définie ailleurs
+    // Vérifier si la commande est "reset firstboot"
+    if (command.equalsIgnoreCase("reset firstboot")) {
+      // Réinitialiser l'état firstboot à true (mettre votre logique ici)
+      firstBoot = true; // Suppose que firstboot est une variable globale définie ailleurs
 
-            // Confirmation dans le Serial Monitor
-            Serial.println("firstboot reset to true.");
-        } else {
-            // Commande non reconnue
-            Serial.println("Unknown command.");
-        }
+      // Confirmation dans le Serial Monitor
+      Serial.println("firstboot reset to true.");
+    } else {
+      // Commande non reconnue
+      Serial.println("Unknown command.");
     }
+  }
 
   switch (currState) {
     case WAITING_FOR_IMAGE:
       pollForImage();
+      pollForMessage();
       digitalWrite(BACKLIGHT_PIN, LOW);
       break;
+
     case WAITING_TO_DISPLAY_GIF:
       if (analogRead(LIGHT_SENSE_PIN) < 5) {
         digitalWrite(BACKLIGHT_PIN, HIGH);
         showGif(true);
         currState = DISPLAYING_GIF;
       } else {
-      servoWiggle(); 
+        servoWiggle(); 
       }
       break;
 
-
-
-
-case WAITING_TO_DISPLAY_PNG:
-  if (check()) {
-    digitalWrite(BACKLIGHT_PIN, HIGH);
-    showImage();
-    delay(60000);
-    tft.fillScreen(TFT_BLACK);
-    // Éteindre l'écran
-     digitalWrite(BACKLIGHT_PIN, LOW);  // Couper l'alimentation de l'écran
-    currState = DISPLAYING_PNG;
-    isTiming = false;  // Réinitialise le chronométrage
-    break;
-  } else {
-    if (!isTiming) {
-      startTime = millis();  // Commence le chronométrage
-      isTiming = true;
-    }
-    
-    if (millis() - startTime > 60*60*1000) {  // Vérifie si 30 secondes se sont écoulées
-      bot.sendMessage(chat_id, "Tu as reçu une image, tu peux la voir ici : https://arcabox.onrender.com//image");
-      isTiming = false;  // Réinitialise le chronométrage
-      showImage();
-      currState = WAITING_FOR_IMAGE;
-      ledcWrite(0, pulseWidth(MID_POS));
-    } else {
-    showImageFromInternet();
-    tft.setRotation(3);
-    }
-  }
-  break;
-
-
+    case WAITING_TO_DISPLAY_PNG:
+      if (check()) {
+        digitalWrite(BACKLIGHT_PIN, HIGH);
+        showImage();
+        delay(60000);
+        tft.fillScreen(TFT_BLACK);
+        // Éteindre l'écran
+        digitalWrite(BACKLIGHT_PIN, LOW);  // Couper l'alimentation de l'écran
+        currState = DISPLAYING_PNG;
+        isTiming = false;  // Réinitialise le chronométrage
+      } else {
+        if (!isTiming) {
+          startTime = millis();  // Commence le chronométrage
+          isTiming = true;
+        }
+        
+        if (millis() - startTime > 60 * 1000) {  // Vérifie si 1 minute s'est écoulée
+          bot.sendMessage(chat_id, "Tu as reçu une image, tu peux la voir ici : https://arcabox.onrender.com/image");
+          isTiming = false;  // Réinitialise le chronométrage
+          showImage();
+          currState = WAITING_FOR_IMAGE;
+          ledcWrite(0, pulseWidth(MID_POS));
+        } else {
+          showImageFromInternet();
+          tft.setRotation(3);
+        }
+      }
+      break;
 
     case DISPLAYING_GIF:
       showGif(false);
@@ -746,6 +725,7 @@ case WAITING_TO_DISPLAY_PNG:
         ledcWrite(0, pulseWidth(MID_POS));
       }
       break;
+
     case DISPLAYING_PNG:
       if (analogRead(LIGHT_SENSE_PIN) > 5) {
         currState = WAITING_FOR_IMAGE;
@@ -753,6 +733,47 @@ case WAITING_TO_DISPLAY_PNG:
         ledcWrite(0, pulseWidth(MID_POS));
       }
       break;
+
+
+
+
+
+
+
+
+
+    case GET_USER_INPUT:  // Ajouter le nouvel état dans le switch
+
+          if (check()) {
+                  digitalWrite(BACKLIGHT_PIN, HIGH);
+                  ShowText(); //Remplacer par le truc pour afficher le message
+                  delay(60000);
+                  tft.fillScreen(TFT_BLACK);
+                  // Éteindre l'écran
+                  digitalWrite(BACKLIGHT_PIN, LOW);  // Couper l'alimentation de l'écran
+                  currState = DISPLAYING_PNG;
+                  isTiming = false;  // Réinitialise le chronométrage
+                } else {
+                  if (!isTiming) {
+                    startTime = millis();  // Commence le chronométrage
+                    isTiming = true;
+                  }
+                  
+                  if (millis() - startTime > 60 * 1000) {  // Vérifie si 1 minute s'est écoulée
+                    bot.sendMessage(chat_id, "Tu as reçu un message, tu peux la voir ici : https://arcabox.onrender.com/messages");
+                    isTiming = false;  // Réinitialise le chronométrage
+                    ShowText(); //Remplacer par le truc pour afficher le message
+                  } else {
+                    showImageFromInternet();
+                    tft.setRotation(3);
+                  }
+                }
+
+
+                currState = WAITING_FOR_IMAGE;
+                new_string();
+                digitalWrite(BACKLIGHT_PIN, LOW);
+                break;
   }
 }
 
@@ -822,6 +843,34 @@ void pollForImage() {
     delete client;
   } else {
     Serial.println("Unable to create client");
+  }
+}
+void pollForMessage() {
+   old_user_input = user_input;
+  HTTPClient http;
+  String serverAddress = "https://arcabox.onrender.com/poll";  // Adresse de mon serveur Flask
+
+  if (http.begin(serverAddress)) {  // Démarre la connexion HTTP
+    int httpCode = http.GET();     // Envoie la requête GET
+    if (httpCode > 0) {            // Vérifie le code de retour
+      if (httpCode == HTTP_CODE_OK) {
+        String payload = http.getString();  // Récupère le contenu de la réponse
+
+        // Parse JSON
+        StaticJsonDocument<200> doc;
+        DeserializationError error = deserializeJson(doc, payload);
+        if (!error) {
+          const char* new_user_input = doc["user_input"];
+          http.end();
+          
+          if (String(new_user_input) != "") {
+          
+          currState = GET_USER_INPUT;
+
+          }
+        }
+      }
+    }
   }
 }
 
