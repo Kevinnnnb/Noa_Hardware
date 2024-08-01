@@ -398,6 +398,9 @@ void setup() {
   tft.setRotation(2); // Change orientation to horizontaldownloadImage
   bot.sendMessage(chat_id, "Hello !\n\nJoyeux anniversaire !\n\nJe vais utiliser ce Bot pour t'envoyer une notif quand tu as reçu un message mais que tu ne l'as pas regardé apres une heure.\n\nA+ 😘");
   downloadImage("https://arcabox.onrender.com/coeur");
+
+  Serial.print("Je regarde si c'est l'écran ou la fonction showteext qui merde : ");
+  ShowText(); 
 }
 
 void downloadImage(const char* url) {
@@ -511,6 +514,10 @@ void ShowText() {
       if (httpCode == HTTP_CODE_OK) {
         String payload = http.getString();  // Récupère le contenu de la réponse
 
+        // Afficher le payload pour déboguer
+        Serial.print("Payload: ");
+        Serial.println(payload);
+
         // Parse JSON
         StaticJsonDocument<200> doc;
         DeserializationError error = deserializeJson(doc, payload);
@@ -519,10 +526,11 @@ void ShowText() {
           http.end();
           
           if (String(new_user_input) != "") {
-            Serial.print("Got message : "); Serial.print(new_user_input); Serial.print("\n");
-            if (check()) {
-              Serial.print("L'user input est : ");
-              Serial.print(new_user_input);
+            Serial.print("Got message: "); 
+            Serial.println(new_user_input);
+
+              Serial.print("L'user input est: ");
+              Serial.println(new_user_input);
  
               // Effacer l'écran TFT et afficher le message
               tft.init();
@@ -531,14 +539,19 @@ void ShowText() {
               tft.setTextColor(TFT_BLACK);
               tft.setTextSize(2);
               tft.setCursor(10, 10);
-              tft.println("  ");
-              tft.print(new_user_input);
+
+              // Vérifier la position du curseur et le texte
+              Serial.print("Affichage du texte à l'écran: ");
+              Serial.println(new_user_input);
+
+              tft.print("  ");
+              tft.println(new_user_input);  // Utiliser println pour s'assurer que le texte est affiché
+              delay(30000);
               tft.setRotation(2); // Réinitialiser la rotation à la valeur par défaut
               isTiming = false;  // Réinitialise le chronométrage
-            } else {
-              }
-            }
-          
+            }  else {
+            Serial.println("new_user_input est vide.");
+          }
 
           // Réinitialiser new_message_available après avoir traité le nouveau message
           new_message_available = false;
@@ -556,6 +569,7 @@ void ShowText() {
   }
   currState = WAITING_FOR_IMAGE;  // Changer l'état après le traitement
 }
+
 
 
 
@@ -628,7 +642,10 @@ bool check() {
   }
 
   delay(10000); // Attendre 10 secondes avant de faire une nouvelle requête
+  Serial.print("L'user n'as rien décidé après une minute, donc je lui envoie un message sur telegram");
   return false; // Retourne false par défaut en cas d'erreur
+
+
 }
 
 void loop() {
@@ -743,38 +760,49 @@ void loop() {
 
 
     case GET_USER_INPUT:  // Ajouter le nouvel état dans le switch
+    Serial.print("\n\nLe programme est en train de gérer les nouveaux messages, merci de patienter...\n\n");
 
-          if (check()) {
-                  digitalWrite(BACKLIGHT_PIN, HIGH);
-                  ShowText(); //Remplacer par le truc pour afficher le message
-                  delay(60000);
-                  tft.fillScreen(TFT_BLACK);
-                  // Éteindre l'écran
-                  digitalWrite(BACKLIGHT_PIN, LOW);  // Couper l'alimentation de l'écran
-                  currState = DISPLAYING_PNG;
-                  isTiming = false;  // Réinitialise le chronométrage
-                } else {
-                  if (!isTiming) {
-                    startTime = millis();  // Commence le chronométrage
-                    isTiming = true;
-                  }
-                  
-                  if (millis() - startTime > 60 * 1000) {  // Vérifie si 1 minute s'est écoulée
-                    bot.sendMessage(chat_id, "Tu as reçu un message, tu peux la voir ici : https://arcabox.onrender.com/messages");
-                    isTiming = false;  // Réinitialise le chronométrage
-                    ShowText(); //Remplacer par le truc pour afficher le message
-                  } else {
-                    showImageFromInternet();
-                    tft.setRotation(3);
-                  }
-                }
+    // Initialiser le chronométrage
+    if (!isTiming) {
+        startTime = millis();  // Commence le chronométrage
+        isTiming = true;
+    }
 
+    // Boucle while pour attendre que check() soit vrai ou que 60 secondes se soient écoulées
+    while (!check() && (millis() - startTime <= 60 * 1000)) {
+        // Code pour faire une pause ou afficher un message en attente peut être ajouté ici si nécessaire
+    
 
-                currState = WAITING_FOR_IMAGE;
-                new_string();
-                digitalWrite(BACKLIGHT_PIN, LOW);
-                break;
+    // Après la boucle while
+    if (check()) {
+        digitalWrite(BACKLIGHT_PIN, HIGH);
+        ShowText();  // Remplacer par le truc pour afficher le message
+        Serial.print("Done\n\n");
+        tft.fillScreen(TFT_BLACK);
+        // Éteindre l'écran
+        digitalWrite(BACKLIGHT_PIN, LOW);  // Couper l'alimentation de l'écran
+        currState = DISPLAYING_PNG;
+        isTiming = false;  // Réinitialise le chronométrage
+    } else if (millis() - startTime > 60 * 1000) {  // Vérifie si 1 minute s'est écoulée
+        bot.sendMessage(chat_id, "Tu as reçu un message, tu peux le voir ici : https://arcabox.onrender.com/messages");
+        isTiming = false;  // Réinitialise le chronométrage
+        ShowText();  // Remplacer par le truc pour afficher le message
+        Serial.print("Trop tard...\n");
+    } else {
+        showImageFromInternet();
+        tft.setRotation(3);
+        Serial.print("Là t'as reçu le message et j'attends que tu le regardes...\n");
+    }
   }
+
+    currState = WAITING_FOR_IMAGE;
+    new_string();
+    digitalWrite(BACKLIGHT_PIN, LOW);
+    Serial.print("J'arrête de display le message :)\n");
+    break;
+}
+
+
 }
 
 void pollForImage() {
